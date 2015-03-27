@@ -17,7 +17,8 @@ var svg = d3.select('.canvas')
 //Scales
 var scales = {};
     scales.x = d3.scale.log().range([0,width]);
-    scales.y = d3.scale.linear().range([height,0]);
+    scales.y = d3.scale.linear().range([height,0]),
+    scales.color = d3.scale.category10()
 
 
 //Global variables
@@ -50,20 +51,45 @@ queue()
     .await(dataLoaded);
 
 function dataLoaded(err, rows, metadata){
+  //First, combine "rows" and "metadata", so that each country is assigned to a region
+  var states = rows.map(function each(state){
+    var region = metaDataMap.get(state.key);
+    state['region'] = region;
+    return state;
+  });
 
-    //First, combine "rows" and "metadata", so that each country is assigned to a region
+  //Then create hierarchy based on regions, using d3.nest()
+  var regions = d3.nest()
+    .key(function(state) { return state.region })
+    .entries(states);
 
-    //Then create hierarchy based on regions, using d3.nest()
+  var world = { name: 'world', values: regions }
 
-    //Finally, perform a treemap layout on the data
+  //Finally, perform a treemap layout on the data
+  var root = svg.datum(world).selectAll('.node')
+    .data(treemap.nodes)
 
-    //draw(root);
+  // console.log(root)
+  draw(root);
 }
 
 function draw(root){
-    //Append <rect> element for each node in the treemap
+  //Append <rect> element for each node in the treemap
+  root.enter()
+    .append('rect')
+    .attr('class', 'node')
+    .attr('tranform', function(d) {
+      console.log(d)
+      return 'translate(0,' + (d.y) + ')';
+    })
+    .attr("width", function(d) { return d.dx; })
+    .attr("height", function(d) { return height/3; })
+    .style('stroke-width', '1px')
+    .style('stroke', 'red')
+    .style('fill', 'none')
+    .attr('fill', function(d) { return scales.color(d.region); })
 
-    //Also append <text> label for each tree node that is a leaf
+  //Also append <text> label for each tree node that is a leaf
 }
 
 function parse(d){
